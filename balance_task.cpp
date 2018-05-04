@@ -33,7 +33,7 @@ static SL_Cstate   cog_target;
 static SL_Cstate   cog_traj;
 static SL_Cstate   cog_ref;
 static double      delta_t = 0.01;
-static double      duration = 4.0;//10.0; //used to be 10
+static double      duration = 2.0;//10.0; //used to be 10
 static double      time_to_go;
 static int         which_step;
 static int         count = 0;
@@ -267,7 +267,7 @@ run_balance_task(void)
             //cog_target.x[_X_] = (cog_des.x[_X_] < 0.05  && cog_des.x[_X_] > -0.05 ) ? cog_des.x[_X_] + 0.05  : ((cog_des.x[_X_] < -.04) ? cog_des.x[_X_] + 2*.05 : 0.05); // pos: right
             //cog_target.x[_Y_] = (cog_des.x[_Y_] < 0.01  && cog_des.x[_Y_] > -0.01 ) ? cog_des.x[_Y_] + 0.015 : cog_des.x[_Y_]; // pos: forward
             //cog_target.x[_Z_] = (cog_des.x[_Z_] < 0.115 && cog_des.x[_Z_] > -0.115) ? cog_des.x[_Z_] + -.115 : cog_des.x[_Z_];
-            cog_target.x[_X_] = (count == 0) ? cog_des.x[_X_] + 0.05  : cog_des.x[_X_] + 2*.05; // pos: right
+            cog_target.x[_X_] = (count == 0) ? cog_des.x[_X_] + 0.04  : cog_des.x[_X_] + 2*.04; // pos: right
             cog_target.x[_Y_] = (count == 0) ?  0.015 : cog_des.x[_Y_]; // pos: forward
             cog_target.x[_Z_] = (count == 0) ?  -.115 : cog_des.x[_Z_];
             
@@ -425,7 +425,7 @@ run_balance_task(void)
             
             // what is the target for the COG?
             bzero((void *)&cog_target,sizeof(cog_target));
-            cog_target.x[_X_] = cog_des.x[_X_] - 0.05*2 ; // pos: right
+            cog_target.x[_X_] = cog_des.x[_X_] - 0.04*2 ; // pos: right
             cog_target.x[_Y_] = cog_des.x[_Y_]; //+ 0.015; // pos: forward
             cog_target.x[_Z_] = cog_des.x[_Z_]; //+ -.115;
             
@@ -567,7 +567,7 @@ run_balance_task(void)
             if (time_to_go <= 0){
                 which_step = ASSIGN_COG_TARGET_R;
                 count += 1;
-                if (count >= 10){    //change number to increase iterations
+                if (count >= 3){    //change number to increase iterations
                     which_step = ASSIGN_COG_TARGET_MIDDLE;
                 }
                 time_to_go = duration;
@@ -579,7 +579,7 @@ run_balance_task(void)
             
             // what is the target for the COG?
             bzero((void *)&cog_target,sizeof(cog_target));
-            cog_target.x[_X_] = cog_des.x[_X_] + 0.05; // assume it will always be from left to middle
+            cog_target.x[_X_] = cog_des.x[_X_] + 0.04; // assume it will always be from left to middle
             cog_target.x[_Y_] = cog_des.x[_Y_];
             cog_target.x[_Z_] = cog_des.x[_Z_];
             
