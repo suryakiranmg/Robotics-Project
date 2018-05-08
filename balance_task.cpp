@@ -33,7 +33,7 @@ static SL_Cstate   cog_target;
 static SL_Cstate   cog_traj;
 static SL_Cstate   cog_ref;
 static double      delta_t = 0.01;
-static double      duration = 2.0;//10.0; //used to be 10
+static double      duration = 4.0;//10.0; //used to be 10
 static double      time_to_go;
 static int         which_step;
 static int         count = 0;
@@ -223,10 +223,10 @@ run_balance_task(void)
             for (i=1; i<=N_DOFS; ++i)
                 target[i] = joint_des_state[i];
             
-            target[R_HFE].th = 0.1;
+            target[R_HFE].th = 0.2;
             target[R_KFE].th = 0.2;
             target[R_AFE].th = 0.1;
-            target[L_HFE].th = 0.1;
+            target[L_HFE].th = 0.2;
             target[L_KFE].th = 0.2;
             target[L_AFE].th = 0.1;// neg means go down
 
@@ -256,19 +256,19 @@ run_balance_task(void)
             if (time_to_go <= 0){
                 which_step = ASSIGN_COG_TARGET_R;
                 time_to_go = duration;
-																//freeze();
+                                                                //freeze();
             }
             break;
             
-        case ASSIGN_COG_TARGET_R:
+        case ASSIGN_COG_TARGET_R: // balance shift right
             
             // what is the target for the COG?
             bzero((void *)&cog_target,sizeof(cog_target));
             //cog_target.x[_X_] = (cog_des.x[_X_] < 0.05  && cog_des.x[_X_] > -0.05 ) ? cog_des.x[_X_] + 0.05  : ((cog_des.x[_X_] < -.04) ? cog_des.x[_X_] + 2*.05 : 0.05); // pos: right
             //cog_target.x[_Y_] = (cog_des.x[_Y_] < 0.01  && cog_des.x[_Y_] > -0.01 ) ? cog_des.x[_Y_] + 0.015 : cog_des.x[_Y_]; // pos: forward
             //cog_target.x[_Z_] = (cog_des.x[_Z_] < 0.115 && cog_des.x[_Z_] > -0.115) ? cog_des.x[_Z_] + -.115 : cog_des.x[_Z_];
-            cog_target.x[_X_] = (count == 0) ? cog_des.x[_X_] + 0.04  : cog_des.x[_X_] + 2*.04; // pos: right
-            cog_target.x[_Y_] = (count == 0) ?  0.015 : cog_des.x[_Y_]; // pos: forward
+            cog_target.x[_X_] = (count == 0) ? cog_des.x[_X_] + 0.04  : cog_des.x[_X_] + 0.09; // pos: right
+            cog_target.x[_Y_] = (count == 0) ?  0.015 : cog_des.x[_Y_] + 0.015 ; // pos: forward
             cog_target.x[_Z_] = (count == 0) ?  -.115 : cog_des.x[_Z_];
             
             // the structure cog_des has the current position of the COG computed from the joint_des_state of the robot. cog_des should track cog_traj
@@ -281,7 +281,7 @@ run_balance_task(void)
             
             // switch to next step of state machine
             which_step = MOVE_TO_COG_TARGET_R;
-												//printf("assign right cog count %d\n", count);
+            //printf("assign right cog count %d\n", count);
             //printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
             //printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
             //printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
@@ -328,21 +328,36 @@ run_balance_task(void)
             if (time_to_go <= 0) {
                 which_step = ASSIGN_JOINT_TARGET_LIFT_UP_R;
                 time_to_go = duration;
-																//freeze();
+		//printf("move to cog right\n");
+	        //printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
+                //printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
+                //printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
+
+		//if (count)
+                //   freeze();
             }
             
             break;
             
-        case ASSIGN_JOINT_TARGET_LIFT_UP_R:
+        case ASSIGN_JOINT_TARGET_LIFT_UP_R: // lift left 
             
             // initialize the target structure from the joint_des_state
             for (i=1; i<=N_DOFS; ++i)
                 target[i] = joint_des_state[i];
+	    // lifting leg            
+            target[L_HFE].th = 1.;//+= 0.6;
+            target[L_KFE].th = 1.;//+= 1.2;
+            target[L_AFE].th = 0.4;//+= 0.6;// neg means go down
             
-            target[L_HFE].th = 0.6;//+= 0.6;
-            target[L_KFE].th = 1.2;//+= 1.2;
-            target[L_AFE].th = 0.6;//+= 0.6;// neg means go down
-            
+	    if (count != 0){
+            	target[R_HFE].th = 0.1; // TODO: check
+	    	target[R_KFE].th = 0.2;
+	    	target[R_AFE].th = 0.1;
+	    //    target[R_AAA].th = 0.32; 
+	    }
+	    else
+		target[R_HFE].th -= 0.05; // before decrement: 0.32 // + will help shift forward
+
             time_to_go = duration;
             which_step = MOVE_JOINT_TARGET_LIFT_UP_R;
             break;
@@ -370,6 +385,9 @@ run_balance_task(void)
             if (time_to_go <= 0){
                 which_step = ASSIGN_JOINT_TARGET_LIFT_DOWN_R;
                 time_to_go = duration;
+		if (count)
+                   freeze();
+                //freeze();
             }
             break;
             
@@ -379,9 +397,13 @@ run_balance_task(void)
             for (i=1; i<=N_DOFS; ++i)
                 target[i] = joint_des_state[i];
             // angle for crounching
-            target[L_HFE].th = 0.065; //0.1; //-= 0.5;
-            target[L_KFE].th = 0.13; //0.2; //-= 1.0;
-            target[L_AFE].th = 0.065; //0.1; //-= 0.5;// neg means go down
+            target[L_HFE].th = 0.3; //0.1; //-= 0.5;
+            target[L_KFE].th = 0.1; //0.2; //-= 1.0;
+            target[L_AFE].th = -0.1; //0.1; //-= 0.5;// neg means go down
+            //target[L_AAA].th = 0.23; // if nothing set, 0.281
+
+            target[R_HFE].th -= 0.05; // freeze after drop down (decrement) R_HFE: 0.15
+            target[R_AFE].th += 0.1; //0.2; //-= 1.0;
 //            target[L_HFE].th = 0.03;
 //            target[L_KFE].th = 0.002;
 //            target[L_AFE].th = -0.04;// neg means go down
@@ -413,11 +435,12 @@ run_balance_task(void)
             if (time_to_go <= 0){
                 which_step = ASSIGN_COG_TARGET_L;
                 time_to_go = duration;
-												//printf("put down left count %d\n", count);
+                                                //printf("put down left count %d\n", count);
             //printf("cog_des %f\n",  cog_des.x[_X_]);
             //printf("cog_des %f\n",  cog_des.x[_Y_]);
             //printf("cog_des %f\n",  cog_des.x[_Z_]);
-																//freeze();
+                //if (count)
+		//    freeze();
             }
             break;
             
@@ -425,8 +448,9 @@ run_balance_task(void)
             
             // what is the target for the COG?
             bzero((void *)&cog_target,sizeof(cog_target));
-            cog_target.x[_X_] = cog_des.x[_X_] - 0.04*2 ; // pos: right
-            cog_target.x[_Y_] = cog_des.x[_Y_]; //+ 0.015; // pos: forward
+            cog_target.x[_X_] = count == 0 ? cog_des.x[_X_] - 0.08 : cog_des.x[_X_] - 0.08; // pos: right or .095
+            cog_target.x[_Y_] = count == 0 ? cog_des.x[_Y_] + 0.04: cog_des.x[_Y_] + 0.04; // can try 0.05 if step to left is touching floor
+	    // too small back foot will stick to the floor, too large will cause instability
             cog_target.x[_Z_] = cog_des.x[_Z_]; //+ -.115;
             
             bzero((void *)&cog_traj,sizeof(cog_traj));
@@ -435,13 +459,13 @@ run_balance_task(void)
             
             // time to go
             time_to_go = duration;
-//												printf("assign left cog count %d\n", count);
-//            printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
-//            printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
-//            printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
+            //printf("assign left cog count %d\n", count);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
             // switch to next step of state machine
             which_step = MOVE_TO_COG_TARGET_L;
-												//freeze();
+                                                //freeze();
             break;
             
         case MOVE_TO_COG_TARGET_L: // this is for inverse kinematics control
@@ -483,7 +507,12 @@ run_balance_task(void)
             if (time_to_go <= 0) {
                 which_step = ASSIGN_JOINT_TARGET_LIFT_UP_L;
                 time_to_go = duration;
-																//freeze();
+            //printf("move to cog left\n");
+	    //printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
+                //if (count)
+		   freeze();
             }
             break;
             
@@ -493,10 +522,13 @@ run_balance_task(void)
             for (i=1; i<=N_DOFS; ++i)
                 target[i] = joint_des_state[i];
             
-            target[R_HFE].th = 0.6; //+= 0.5;
-            target[R_KFE].th = 1.2; //+= 1.0;
-            target[R_AFE].th = 0.6; //+= 0.5;// neg means go down
-            
+            target[R_HFE].th = 0.4; //+= 0.5;
+            target[R_KFE].th = 0.8; //+= 1.0;
+            target[R_AFE].th = 0.4; //+= 0.5;// neg means go down
+            // cog is way too over to the left 
+            target[L_HFE].th = 0.15; // TODO: check
+	    target[L_KFE].th = 0.3;
+	    target[L_AFE].th = 0.15;
             time_to_go = duration;
             
             which_step = MOVE_JOINT_TARGET_LIFT_UP_L;
@@ -521,10 +553,12 @@ run_balance_task(void)
             
             // decrement time to go
             time_to_go -= delta_t;
-            //    printf("In MOVE_JOINT_TARGET_LIFT_UP\n");
+                //printf("In MOVE_JOINT_TARGET_LIFT_UP\n");
             if (time_to_go <= 0){
                 which_step = ASSIGN_JOINT_TARGET_LIFT_DOWN_L;
                 time_to_go = duration;
+		//if (count)
+		//  freeze();
             }
             break;
             
@@ -534,12 +568,16 @@ run_balance_task(void)
             for (i=1; i<=N_DOFS; ++i)
                 target[i] = joint_des_state[i];
             
-            target[R_HFE].th = 0.065; //0.1; //-= 0.5;
-            target[R_KFE].th = 0.13; //0.2; //-= 1.;
-            target[R_AFE].th = 0.065; //0.1; //-= 0.5;// neg means go down
+            target[R_HFE].th = 0.3; //0.1; //-= 0.5; // used to be 0.2
+            target[R_KFE].th = 0.1; //0.2; //-= 1.0;
+            target[R_AFE].th = -0.1; //0.1; //-= 0.5;// neg means go down
+// move cog a bit to the right (to prevent fall to left)
+//	    target[L_AAA].th = -0.3;
 //            target[R_HFE].th = -0.03;
-//            target[R_KFE].th = 0.002;
-//            target[R_AFE].th = -0.04;// neg means go down
+// may need to change to smaller value (to prevent lean back so much)
+            target[L_HFE].th -= 0.05;
+            //target[L_KFE].th = 0.8;
+            target[L_AFE].th += 0.05;// neg means go down
             
             time_to_go = duration;
             which_step = MOVE_JOINT_TARGET_LIFT_DOWN_L;
@@ -566,12 +604,21 @@ run_balance_task(void)
             time_to_go -= delta_t;
             if (time_to_go <= 0){
                 which_step = ASSIGN_COG_TARGET_R;
+		//if (count)
+                //   freeze();		
+            //printf("move to cog left\n");
+	    //printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
+            //printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
                 count += 1;
-                if (count >= 3){    //change number to increase iterations
+                if (count >= 10){    //change number to increase iterations
+                    
                     which_step = ASSIGN_COG_TARGET_MIDDLE;
+                    
                 }
                 time_to_go = duration;
-																//freeze();
+//		if (count)
+//                   freeze(); // cog here x=-0.027 (-0.029)   y= 0.092 ( 0.093)   z=-0.125 (-0.121)
             }
             break;
             
@@ -592,7 +639,7 @@ run_balance_task(void)
             
             // switch to next step of state machine
             which_step = MOVE_TO_COG_TARGET_MIDDLE;
-												//printf("assign mid cog count %d\n", count);
+                                                //printf("assign mid cog count %d\n", count);
             //printf("cog_target %f cog_des %f\n", cog_target.x[_X_], cog_des.x[_X_]);
             //printf("cog_target %f cog_des %f\n", cog_target.x[_Y_], cog_des.x[_Y_]);
             //printf("cog_target %f cog_des %f\n", cog_target.x[_Z_], cog_des.x[_Z_]);
@@ -638,7 +685,7 @@ run_balance_task(void)
                 time_to_go = duration;
                 which_step = ASSIGN_CROUCH;
                 //printf("Done\n");
-																count = 0;
+                                                                count = 0;
                 freeze();
             }
             break;
@@ -750,4 +797,5 @@ min_jerk_next_step (double x,double xd, double xdd, double t, double td, double 
     
     return TRUE;
 }
+
 
